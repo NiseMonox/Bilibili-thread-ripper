@@ -423,7 +423,7 @@ B 站原生播放器
 
 ## 开发与构建
 
-项目没有运行时包管理器依赖，Chrome 可以直接加载源码目录。
+扩展运行时没有任何依赖，Chrome 可以直接加载源码目录。`package.json` 里只有测试用的 Playwright。
 
 ```text
 src/       原生播放器接管、多线程下载、Range 校验和 CDN 选择
@@ -432,6 +432,24 @@ icons/     扩展图标
 scripts/   Windows 构建脚本
 user_scripts/ 油猴脚本（自动生成）和它的小适配层
 dev/       本地回归测试
+```
+
+### 跑测试
+
+```bash
+npm install
+npx playwright install chromium
+npm test
+```
+
+`npm run test:unit` 只跑 Node 的单元测试（版本号一致性、设置迁移、CDN 封禁与分块下载），几秒钟就完。
+`npm run test:regression` 会自己起 `dev/server.js`，再用浏览器跑站内跳转、合集切换、兼容模式、接管失败提示和消息气泡这些回归场景。
+本机装了 Chrome 就直接用它，没装就退回 Playwright 自带的 Chromium；想指定浏览器可以设 `BTR_CHROME_PATH`。
+
+真实视频的播放测试要额外给一个视频：
+
+```bash
+BTR_TEST_BVID=BVxxxxxxxxxx BTR_TEST_CID=123456 npm run test:media
 ```
 
 Windows PowerShell 构建：

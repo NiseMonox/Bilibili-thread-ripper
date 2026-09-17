@@ -10,7 +10,6 @@
       return { enabled: value?.enabled !== false, mode: value?.mode || "mainland", concurrency: 32 };
     }
   };
-  root.__BILI_THREAD_RIPPER_EARLY_MASK__ = { arm() {}, release() {} };
   root.__BILI_NATIVE_MSE_PLAYER_FACTORY__ = { createNativePlayer() { throw new Error("不应创建播放器"); } };
   root.fetch = async (input) => {
     const url = new URL(String(input), location.href);

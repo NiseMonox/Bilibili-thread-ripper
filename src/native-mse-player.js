@@ -432,10 +432,23 @@
       }, 300);
     }
 
+    // The native error panel is hidden while the takeover owns playback, because B 站
+    // reports an error for a media source it no longer controls. Each hidden node keeps
+    // its previous inline display so that a real error becomes visible again as soon as
+    // the takeover gives up.
+    const hiddenNativeErrorNodes = new Map();
+
     function clearNativeErrorOverlay() {
       for (const node of options.container.querySelectorAll(".bpx-player-error-wrap,.bpx-player-error-panel,.bpx-player-toast-wrap")) {
-        if (node instanceof HTMLElement) node.style.display = "none";
+        if (!(node instanceof HTMLElement) || hiddenNativeErrorNodes.has(node)) continue;
+        hiddenNativeErrorNodes.set(node, node.style.display);
+        node.style.display = "none";
       }
+    }
+
+    function restoreNativeErrorOverlay() {
+      for (const [node, display] of hiddenNativeErrorNodes) node.style.display = display;
+      hiddenNativeErrorNodes.clear();
     }
 
     function attemptAutoplay(candidate) {
@@ -664,6 +677,7 @@
       if (session) disposeSession(session, true);
       delete video.dataset.btrMediaEngine;
       delete options.container.dataset.btrMseActive;
+      restoreNativeErrorOverlay();
       if (resumeNative && original.src) {
         video.src = original.src;
         video.volume = original.volume;

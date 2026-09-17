@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 回归测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # 本机没有 Chrome 时 dev/chrome-path.js 会退回 Playwright 自带的 Chromium。
+      - run: npx playwright install --with-deps chromium
+      - name: 单元测试
+        run: npm run test:unit
+      - name: 浏览器回归测试
+        run: npm run test:regression
+
+  userscript:
+    name: 油猴脚本是否重新生成过
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 重新生成并比对
+        shell: pwsh
+        run: |
+          .\scripts\build-userscript.ps1
+          git diff --exit-code -- user_scripts/bilibili-thread-ripper.user.js
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "user_scripts/bilibili-thread-ripper.user.js 和 src 不一致，请运行 scripts/build-userscript.ps1 后一起提交。"
+            exit 1
+          }

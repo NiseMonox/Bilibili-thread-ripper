@@ -3,6 +3,7 @@
 // Runs native-mse-test.html with each video codec: startup, seek, and playing to the end.
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
+const { chromeLaunchOptions } = require("./chrome-path.js");
 
 const cases = [
   "",
@@ -15,7 +16,7 @@ const cases = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: process.env.BTR_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", headless: true });
+  const browser = await chromium.launch(chromeLaunchOptions());
   let failed = false;
   try {
     for (let offset = 0; offset < cases.length; offset += 3) {

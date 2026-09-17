@@ -1,6 +1,7 @@
 "use strict";
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
+const { chromeLaunchOptions } = require("./chrome-path.js");
 
 function mockChrome() {
   const listeners = [];
@@ -24,7 +25,7 @@ function mockChrome() {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: process.env.BTR_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", headless: true, args: ["--disable-background-timer-throttling"] });
+  const browser = await chromium.launch(chromeLaunchOptions({ args: ["--disable-background-timer-throttling"] }));
   const errors = [];
   const origin = "http://127.0.0.1:18763";
   const red = '.bubble[data-level="error"]:not(.leaving)';

@@ -23,7 +23,6 @@
       };
     }
   };
-  root.__BILI_THREAD_RIPPER_EARLY_MASK__ = { arm() {}, release() {} };
   root.__BILI_NATIVE_MSE_PLAYER_FACTORY__ = {
     createNativePlayer(options) {
       createCalls += 1;

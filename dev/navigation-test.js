@@ -7,8 +7,6 @@
   const NEW_BVID = "BV1newRoute02";
   const calls = [];
   const apiRequests = [];
-  let resolvedIdentity = null;
-  let identityError = "";
   let mixedStateCid = 0;
   const nativeVideo = document.querySelector("video");
   const pod = document.createElement("div");
@@ -35,7 +33,6 @@
       return { enabled: value?.enabled !== false, mode: value?.mode || "mainland", concurrency: 32 };
     }
   };
-  root.__BILI_THREAD_RIPPER_EARLY_MASK__ = { arm() {}, release() {} };
   root.__BILI_NATIVE_MSE_PLAYER_FACTORY__ = {
     createNativePlayer(options) {
       const marker = options.playinfo?.data?.marker || "";
@@ -99,21 +96,15 @@
   newItem.addEventListener("click", () => {
     activate(newItem, NEW_BVID);
     mixedStateCid = Number(root.__INITIAL_STATE__.videoData.cid);
-    root.__BILI_DANMAKU_FACTORY__.resolveIdentity(root.fetch, { bvid: NEW_BVID, part: 1 }).then(
-      (identity) => { resolvedIdentity = identity; },
-      (error) => { identityError = String(error?.message || error); }
-    );
   });
 
-  root.__navigationTest = { calls, apiRequests, OLD_BVID, MIDDLE_BVID, NEW_BVID, get resolvedIdentity() { return resolvedIdentity; }, get identityError() { return identityError; }, get mixedStateCid() { return mixedStateCid; } };
+  root.__navigationTest = { calls, apiRequests, OLD_BVID, MIDDLE_BVID, NEW_BVID, get mixedStateCid() { return mixedStateCid; } };
   const result = document.getElementById("navigation-result");
   setInterval(() => {
     const oldCall = calls.find((item) => item.marker === OLD_BVID);
     const newCall = calls.find((item) => item.marker === NEW_BVID);
     const output = {
       calls,
-      resolvedIdentity,
-      identityError,
       mixedStateCid,
       apiRequests,
       apiFallbackUsedCorrectOrigin: apiRequests.some((url) => url.includes("/x/web-interface/view"))
@@ -140,13 +131,11 @@
       && output.playlistKeptPlaying
       && output.apiFallbackUsedCorrectOrigin
       && output.activePodKey === NEW_BVID
-      && output.resolvedIdentity?.bvid === NEW_BVID
-      && output.resolvedIdentity?.cid === 303
+      && output.mixedStateCid === 101
       && output.debugVersion === "0.9.1.3"
       && output.settingsPanelCount === 1
       && output.settingsStrategy === "native-ui-progressive-mse-0.8-core"
-      && output.compatibilityOptions.join(",") === "off,a,b"
-      && !output.identityError;
+      && output.compatibilityOptions.join(",") === "off,a,b";
     result.textContent = JSON.stringify(output);
     result.dataset.pass = String(output.pass);
   }, 50);

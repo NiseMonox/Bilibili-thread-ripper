@@ -515,36 +515,6 @@
       notices?.logs(event.data.payload);
       return;
     }
-    if (event.data.type === "danmaku-request") {
-      const requestId = String(event.data.requestId || "").slice(0, 100);
-      const cid = Number(event.data.cid);
-      if (!requestId || !Number.isSafeInteger(cid) || cid <= 0) return;
-      chrome.runtime.sendMessage({ type: "fetchDanmakuXml", cid }).then(
-        (payload) => window.postMessage({ channel: CHANNEL, type: "danmaku-response", requestId, payload }, "*"),
-        (error) => window.postMessage({
-          channel: CHANNEL,
-          type: "danmaku-response",
-          requestId,
-          payload: { ok: false, error: String(error?.message || error).slice(0, 180) }
-        }, "*")
-      );
-      return;
-    }
-    if (event.data.type === "subtitle-request") {
-      const requestId = String(event.data.requestId || "").slice(0, 100);
-      const url = String(event.data.url || "").slice(0, 4096);
-      if (!requestId || !url) return;
-      chrome.runtime.sendMessage({ type: "fetchSubtitleText", url }).then(
-        (payload) => window.postMessage({ channel: CHANNEL, type: "subtitle-response", requestId, payload }, "*"),
-        (error) => window.postMessage({
-          channel: CHANNEL,
-          type: "subtitle-response",
-          requestId,
-          payload: { ok: false, error: String(error?.message || error).slice(0, 180) }
-        }, "*")
-      );
-      return;
-    }
     if (event.data.type === "settings-update") {
       const input = event.data.payload;
       if (!input || typeof input !== "object") return;

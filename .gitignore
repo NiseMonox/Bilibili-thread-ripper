@@ -15,3 +15,6 @@ Thumbs.db
 Desktop.ini
 *.log
 
+
+# npm
+node_modules/

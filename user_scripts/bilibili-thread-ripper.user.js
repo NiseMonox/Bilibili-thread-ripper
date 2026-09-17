@@ -1509,10 +1509,23 @@ const chrome = (() => {
       }, 300);
     }
 
+    // The native error panel is hidden while the takeover owns playback, because B 站
+    // reports an error for a media source it no longer controls. Each hidden node keeps
+    // its previous inline display so that a real error becomes visible again as soon as
+    // the takeover gives up.
+    const hiddenNativeErrorNodes = new Map();
+
     function clearNativeErrorOverlay() {
       for (const node of options.container.querySelectorAll(".bpx-player-error-wrap,.bpx-player-error-panel,.bpx-player-toast-wrap")) {
-        if (node instanceof HTMLElement) node.style.display = "none";
+        if (!(node instanceof HTMLElement) || hiddenNativeErrorNodes.has(node)) continue;
+        hiddenNativeErrorNodes.set(node, node.style.display);
+        node.style.display = "none";
       }
+    }
+
+    function restoreNativeErrorOverlay() {
+      for (const [node, display] of hiddenNativeErrorNodes) node.style.display = display;
+      hiddenNativeErrorNodes.clear();
     }
 
     function attemptAutoplay(candidate) {
@@ -1741,6 +1754,7 @@ const chrome = (() => {
       if (session) disposeSession(session, true);
       delete video.dataset.btrMediaEngine;
       delete options.container.dataset.btrMseActive;
+      restoreNativeErrorOverlay();
       if (resumeNative && original.src) {
         video.src = original.src;
         video.volume = original.volume;
@@ -1979,7 +1993,6 @@ const chrome = (() => {
 
   const core = root.__BILI_RANGE_CORE__;
   const playerFactory = root.__BILI_NATIVE_MSE_PLAYER_FACTORY__;
-  const earlyMask = root.__BILI_THREAD_RIPPER_EARLY_MASK__;
   const notices = root.__BTR_RUNTIME_NOTICES__;
   if (!core || !playerFactory || typeof root.fetch !== "function") return;
   Object.defineProperty(root, INSTALL_FLAG, { value: true });
@@ -2793,7 +2806,6 @@ const chrome = (() => {
       clearTakeoverFailure();
       stats.lastError = "";
       if (player) stopPlayer(true);
-      earlyMask?.release?.();
       return;
     }
     if (pendingPodSwitch) {
@@ -2813,19 +2825,15 @@ const chrome = (() => {
     if (ensureCompatibilityPreflight(identity)) {
       stats.playerState = "waiting";
       schedulePublish();
-      earlyMask?.release?.();
       return;
     }
     if (!player && failedRoute === route) {
-      earlyMask?.release?.();
       return;
     }
     if (player && playerRoute === route && playerContainer?.isConnected && player.video?.isConnected) {
-      earlyMask?.release?.();
       return;
     }
     if (startingRoute === route) return;
-    earlyMask?.arm?.();
     const container = findContainer();
     if (!container) {
       stats.playerState = stats.takeoverError?.route === route ? "error" : "waiting";
@@ -2940,7 +2948,6 @@ const chrome = (() => {
           setTimeout(() => {
             if (lifecycle === playerLifecycle && player && playerRoute === route && stats.playerState === "error") {
               stopPlayer(true);
-              earlyMask?.release?.();
               stats.playerState = "native-fallback";
               publish();
             }
@@ -2960,11 +2967,9 @@ const chrome = (() => {
         trustedPodVideoKey = identity.videoKey;
         pendingPodSwitch = null;
       }
-      earlyMask?.release?.();
     } catch (error) {
       if (lifecycle !== playerLifecycle) return;
       recordTakeoverFailure(route, "create", error, true);
-      earlyMask?.release?.();
       restartTimer = setTimeout(startPlayer, 2000);
     }
   }
@@ -2974,7 +2979,6 @@ const chrome = (() => {
     if (force && compatibilityReloadTimer) cancelCompatibilityReload(true);
     const identity = routeIdentity();
     if (!force && player && identity?.key === playerRoute && playerContainer?.isConnected && player.video?.isConnected) {
-      earlyMask?.release?.();
       return;
     }
     routeGeneration += 1;
@@ -2982,8 +2986,6 @@ const chrome = (() => {
     routeRequestController = null;
     startingRoute = "";
     failedRoute = "";
-    if (settings.enabled && identity) earlyMask?.arm?.();
-    else earlyMask?.release?.();
     if (player) stopPlayer(false);
     restartTimer = setTimeout(startPlayer, 50);
   }
@@ -3903,36 +3905,6 @@ const chrome = (() => {
     }
     if (event.data.type === "debug-notices") {
       notices?.logs(event.data.payload);
-      return;
-    }
-    if (event.data.type === "danmaku-request") {
-      const requestId = String(event.data.requestId || "").slice(0, 100);
-      const cid = Number(event.data.cid);
-      if (!requestId || !Number.isSafeInteger(cid) || cid <= 0) return;
-      chrome.runtime.sendMessage({ type: "fetchDanmakuXml", cid }).then(
-        (payload) => window.postMessage({ channel: CHANNEL, type: "danmaku-response", requestId, payload }, "*"),
-        (error) => window.postMessage({
-          channel: CHANNEL,
-          type: "danmaku-response",
-          requestId,
-          payload: { ok: false, error: String(error?.message || error).slice(0, 180) }
-        }, "*")
-      );
-      return;
-    }
-    if (event.data.type === "subtitle-request") {
-      const requestId = String(event.data.requestId || "").slice(0, 100);
-      const url = String(event.data.url || "").slice(0, 4096);
-      if (!requestId || !url) return;
-      chrome.runtime.sendMessage({ type: "fetchSubtitleText", url }).then(
-        (payload) => window.postMessage({ channel: CHANNEL, type: "subtitle-response", requestId, payload }, "*"),
-        (error) => window.postMessage({
-          channel: CHANNEL,
-          type: "subtitle-response",
-          requestId,
-          payload: { ok: false, error: String(error?.message || error).slice(0, 180) }
-        }, "*")
-      );
       return;
     }
     if (event.data.type === "settings-update") {

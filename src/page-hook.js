@@ -16,7 +16,6 @@
 
   const core = root.__BILI_RANGE_CORE__;
   const playerFactory = root.__BILI_NATIVE_MSE_PLAYER_FACTORY__;
-  const earlyMask = root.__BILI_THREAD_RIPPER_EARLY_MASK__;
   const notices = root.__BTR_RUNTIME_NOTICES__;
   if (!core || !playerFactory || typeof root.fetch !== "function") return;
   Object.defineProperty(root, INSTALL_FLAG, { value: true });
@@ -830,7 +829,6 @@
       clearTakeoverFailure();
       stats.lastError = "";
       if (player) stopPlayer(true);
-      earlyMask?.release?.();
       return;
     }
     if (pendingPodSwitch) {
@@ -850,19 +848,15 @@
     if (ensureCompatibilityPreflight(identity)) {
       stats.playerState = "waiting";
       schedulePublish();
-      earlyMask?.release?.();
       return;
     }
     if (!player && failedRoute === route) {
-      earlyMask?.release?.();
       return;
     }
     if (player && playerRoute === route && playerContainer?.isConnected && player.video?.isConnected) {
-      earlyMask?.release?.();
       return;
     }
     if (startingRoute === route) return;
-    earlyMask?.arm?.();
     const container = findContainer();
     if (!container) {
       stats.playerState = stats.takeoverError?.route === route ? "error" : "waiting";
@@ -977,7 +971,6 @@
           setTimeout(() => {
             if (lifecycle === playerLifecycle && player && playerRoute === route && stats.playerState === "error") {
               stopPlayer(true);
-              earlyMask?.release?.();
               stats.playerState = "native-fallback";
               publish();
             }
@@ -997,11 +990,9 @@
         trustedPodVideoKey = identity.videoKey;
         pendingPodSwitch = null;
       }
-      earlyMask?.release?.();
     } catch (error) {
       if (lifecycle !== playerLifecycle) return;
       recordTakeoverFailure(route, "create", error, true);
-      earlyMask?.release?.();
       restartTimer = setTimeout(startPlayer, 2000);
     }
   }
@@ -1011,7 +1002,6 @@
     if (force && compatibilityReloadTimer) cancelCompatibilityReload(true);
     const identity = routeIdentity();
     if (!force && player && identity?.key === playerRoute && playerContainer?.isConnected && player.video?.isConnected) {
-      earlyMask?.release?.();
       return;
     }
     routeGeneration += 1;
@@ -1019,8 +1009,6 @@
     routeRequestController = null;
     startingRoute = "";
     failedRoute = "";
-    if (settings.enabled && identity) earlyMask?.arm?.();
-    else earlyMask?.release?.();
     if (player) stopPlayer(false);
     restartTimer = setTimeout(startPlayer, 50);
   }

@@ -35,14 +35,6 @@ http.createServer(async (request, response) => {
       const config = testConfig();
       return proxyJson(`https://api.bilibili.com/x/player/playurl?bvid=${encodeURIComponent(config.bvid)}&cid=${config.cid}&fnval=4048&fnver=0&fourk=1&qn=80`, response);
     }
-    if (url.pathname === "/danmaku") {
-      const cid = Number(url.searchParams.get("cid"));
-      if (!Number.isSafeInteger(cid) || cid <= 0) throw new Error("invalid cid");
-      const upstream = await fetch(`https://comment.bilibili.com/${cid}.xml`);
-      response.writeHead(upstream.status, { "Content-Type": "text/xml; charset=utf-8", "Cache-Control": "no-store" });
-      response.end(await upstream.text());
-      return;
-    }
     if (url.pathname === "/media") {
       const targetUrl = new URL(url.searchParams.get("url"));
       if (!/(?:^|\.)(?:bilivideo\.(?:com|cn|net)|akamaized\.net)$/i.test(targetUrl.hostname)) throw new Error("invalid media host");
@@ -70,7 +62,7 @@ http.createServer(async (request, response) => {
     const relative = /^\/video\/BV1compat[0-9]+$/i.test(url.pathname) && ["a", "b"].includes(url.searchParams.get("mode"))
       ? "dev/compatibility-mode-test.html"
       : url.pathname === "/"
-        ? "dev/harness.html"
+        ? "dev/native-mse-test.html"
         : decodeURIComponent(url.pathname).replace(/^\/+/, "");
     const target = path.resolve(root, relative);
     if (!target.startsWith(`${root}${path.sep}`) || !fs.statSync(target).isFile()) throw new Error("not found");

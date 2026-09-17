@@ -1,0 +1,15 @@
+{
+  "name": "bilibili-thread-ripper",
+  "private": true,
+  "description": "开发与测试用，扩展本身在运行时没有任何依赖。",
+  "license": "MIT",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:regression",
+    "test:unit": "node --test dev/version-test.js dev/shared-core-test.js dev/settings-migration-test.js",
+    "test:regression": "node dev/run-browser-tests.js regression-smoke-test.js userscript-test.js notification-flow-test.js notification-smoke-test.js notification-error-test.js",
+    "test:media": "node dev/run-browser-tests.js native-mse-end-test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
