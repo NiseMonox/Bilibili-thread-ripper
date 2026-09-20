@@ -1,6 +1,6 @@
 # 油猴脚本
 
-装好 [Tampermonkey](https://www.tampermonkey.net/)，然后点：[**安装线程撕裂者**](https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js)
+装好 [Tampermonkey](https://www.tampermonkey.net/)，然后点：[**安装线程撕裂者**](https://raw.githubusercontent.com/NiseMonox/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js)
 
 设置：点油猴图标 → 线程撕裂者设置
 

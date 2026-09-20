@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Bilibili 线程撕裂者
-// @namespace    https://github.com/MrTangLuyao/Bilibili-thread-ripper
+// @namespace    https://github.com/NiseMonox/Bilibili-thread-ripper
 // @version      0.9.1.4
 // @description  保留哔哩哔哩原生播放器，通过多 CDN、多 Range 并发下载改善视频缓冲速度。
 // @author       MrTangLuyao
 // @license      MIT
-// @homepageURL  https://github.com/MrTangLuyao/Bilibili-thread-ripper
-// @supportURL   https://github.com/MrTangLuyao/Bilibili-thread-ripper/issues
-// @updateURL    https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js
-// @downloadURL  https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js
+// @homepageURL  https://github.com/NiseMonox/Bilibili-thread-ripper
+// @supportURL   https://github.com/NiseMonox/Bilibili-thread-ripper/issues
+// @updateURL    https://raw.githubusercontent.com/NiseMonox/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js
+// @downloadURL  https://raw.githubusercontent.com/NiseMonox/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js
 // @match        https://www.bilibili.com/*
 // @match        https://m.bilibili.com/*
 // @run-at       document-start

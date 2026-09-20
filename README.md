@@ -27,6 +27,8 @@
 
 > 本项目是非官方、实验性质的开源扩展。它不会绕过会员、登录、区域、清晰度、审核状态、数字版权保护或媒体签名限制。
 
+> **关于这个仓库**：这是 [MrTangLuyao/Bilibili-thread-ripper](https://github.com/MrTangLuyao/Bilibili-thread-ripper) 的修改版，遵循原项目的 MIT 协议。相比原版主要修复了高码率视频撑爆浏览器缓冲区导致接管失败的问题，清理了 `0.8.x` 遗留的无用代码并缩小了扩展权限，另外补上了自动化测试。详见 [更新历史](#更新历史) 的 `0.9.1.4`。
+
 ## 安装
 
 ### 有两种方式安装，对于Chrome内核的比如Chrome,Edge,Opera 等浏览器可以优先尝试插件版，这版通过了多次测试，实测效果比油猴版会更好一些。对于Firefox，Safari浏览器的用户可以尝试实验性的油猴脚本，搭配Tampermonkey插件使用，优点是可以自动检测更新，并且跨平台。
@@ -44,7 +46,7 @@
 ### 方式2 油猴脚本安装
 
 1. 装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 点这里：[**安装线程撕裂者**](https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js)
+2. 点这里：[**安装线程撕裂者**](https://raw.githubusercontent.com/NiseMonox/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js)
 3. 打开 B 站视频，完事
 
 - 有新版会自动更新

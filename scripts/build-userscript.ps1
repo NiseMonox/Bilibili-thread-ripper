@@ -3,14 +3,38 @@ $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $manifest = [System.IO.File]::ReadAllText((Join-Path $projectRoot "manifest.json"), $utf8) | ConvertFrom-Json
 $version = [string]$manifest.version
-$repository = "https://github.com/MrTangLuyao/Bilibili-thread-ripper"
-$scriptUrl = "https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js"
+$repository = "https://github.com/NiseMonox/Bilibili-thread-ripper"
+$scriptUrl = "https://raw.githubusercontent.com/NiseMonox/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js"
 
 function Read-Source([string]$file) {
   return ([System.IO.File]::ReadAllText((Join-Path $projectRoot $file), $utf8).TrimStart([char]0xFEFF) -replace "`r`n", "`n").TrimEnd([char]10)
 }
 function Add-Source([System.Text.StringBuilder]$builder, [string]$file) {
   [void]$builder.Append("`n/* $file */`n").Append((Read-Source $file)).Append("`n")
+}
+
+# ConvertTo-Json 在 Windows PowerShell 5.1 和 PowerShell 7 里对 < > & ' 的转义规则不一样，
+# 同一份源码在两边会生成字节不同的脚本，CI 的“重新生成并比对”就会误报。这里自己编码，
+# 保证在哪个 PowerShell 上构建结果都完全一致。
+function ConvertTo-JsString([string]$Value) {
+  $builder = New-Object System.Text.StringBuilder
+  [void]$builder.Append('"')
+  foreach ($char in $Value.ToCharArray()) {
+    $code = [int]$char
+    if ($char -eq '"') { [void]$builder.Append('\"') }
+    elseif ($char -eq '\') { [void]$builder.Append('\\') }
+    elseif ($code -eq 8) { [void]$builder.Append('\b') }
+    elseif ($code -eq 9) { [void]$builder.Append('\t') }
+    elseif ($code -eq 10) { [void]$builder.Append('\n') }
+    elseif ($code -eq 12) { [void]$builder.Append('\f') }
+    elseif ($code -eq 13) { [void]$builder.Append('\r') }
+    elseif ($code -lt 32 -or $code -eq 0x3C -or $code -eq 0x3E -or $code -eq 0x26 -or $code -eq 0x27 -or $code -eq 0x2028 -or $code -eq 0x2029) {
+      [void]$builder.Append(('\u{0:x4}' -f $code))
+    }
+    else { [void]$builder.Append($char) }
+  }
+  [void]$builder.Append('"')
+  return $builder.ToString()
 }
 
 # 页面里运行的部分：和扩展同一份代码、同样的顺序，外加扩展侧边栏的设置页。
@@ -52,8 +76,8 @@ $body = New-Object System.Text.StringBuilder
 [void]$body.Append("document.documentElement?.setAttribute(`"data-btr-userscript`", `"`");`n")
 foreach ($file in $pageFiles) { Add-Source $body $file }
 [void]$body.Append("`n/* popup/popup.html, popup/popup.css */`n")
-[void]$body.Append("const POPUP_HTML = " + (ConvertTo-Json -InputObject $popupHtml -Compress) + ";`n")
-[void]$body.Append("const POPUP_CSS = " + (ConvertTo-Json -InputObject (Read-Source "popup/popup.css") -Compress) + ";`n")
+[void]$body.Append("const POPUP_HTML = " + (ConvertTo-JsString $popupHtml) + ";`n")
+[void]$body.Append("const POPUP_CSS = " + (ConvertTo-JsString (Read-Source "popup/popup.css")) + ";`n")
 [void]$body.Append("`n/* popup/popup.js */`nfunction runPopup(document, chrome, window) {`n").Append((Read-Source "popup/popup.js")).Append("`n}`n")
 Add-Source $body "user_scripts/adapter/settings-panel.js"
 [void]$body.Append("}`n")

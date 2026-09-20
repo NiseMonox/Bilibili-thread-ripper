@@ -8,7 +8,11 @@ const { chromeLaunchOptions } = require("./chrome-path.js");
 const root = path.resolve(__dirname, "..");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 const script = fs.readFileSync(path.join(root, "user_scripts/bilibili-thread-ripper.user.js"), "utf8");
-const scriptUrl = "https://raw.githubusercontent.com/MrTangLuyao/Bilibili-thread-ripper/main/user_scripts/bilibili-thread-ripper.user.js";
+// 自动更新地址以构建脚本为准：换了仓库只要改 build-userscript.ps1，这里不用跟着改，
+// 反过来也能发现“改了构建脚本但忘了重新生成”。
+const buildScript = fs.readFileSync(path.join(root, "scripts/build-userscript.ps1"), "utf8");
+const scriptUrl = /\$scriptUrl = "([^"]+)"/.exec(buildScript)?.[1];
+assert.ok(scriptUrl, "build-userscript.ps1 里没有找到 $scriptUrl");
 const source = file => fs.readFileSync(path.join(root, file), "utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trimEnd();
 
 function checkFile() {
