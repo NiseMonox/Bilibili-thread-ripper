@@ -11,6 +11,14 @@
   const STARTUP_BUFFER_MAX_SECONDS = 10;
   const STARTUP_RECOVERY_SECONDS = 6;
   const STARTUP_PROTECTION_MS = 20000;
+  // Chrome 给每个 SourceBuffer 的内存是有上限的（视频大约 150 MiB），超了 appendBuffer 会直接
+  // 抛 QuotaExceededError。固定缓冲 45 秒在 1080P 没问题，4K 高码率二十几秒就能撑爆，所以按
+  // 码率折算：先算这条轨道在预算内能放多少秒，再分给“已经播过的部分”和“往前缓冲”。
+  const VIDEO_BUFFER_BUDGET_BYTES = 80 * 1024 * 1024;
+  const AUDIO_BUFFER_BUDGET_BYTES = 8 * 1024 * 1024;
+  const MIN_AHEAD_SECONDS = 8;
+  const MIN_KEEP_BEHIND_SECONDS = 5;
+  const MAX_KEEP_BEHIND_SECONDS = 20;
   const QUALITY_NAMES = Object.freeze({
     127: "8K", 126: "杜比视界", 125: "HDR", 120: "4K", 116: "1080P 60帧",
     112: "1080P 高码率", 80: "1080P", 74: "720P 60帧", 64: "720P",
@@ -163,6 +171,19 @@
     return time;
   }
 
+  // 码率未知时保持原来的固定值。普通码率算出来的预算远大于 45 秒，所以 1080P 及以下的
+  // 行为和以前完全一样，只有高码率才会被压下来。
+  function bufferPlan(kind, bytesPerSecond, requestedAheadSeconds) {
+    const requested = Math.max(MIN_AHEAD_SECONDS, Number(requestedAheadSeconds) || 0);
+    const budget = kind === "audio" ? AUDIO_BUFFER_BUDGET_BYTES : VIDEO_BUFFER_BUDGET_BYTES;
+    const rate = Number(bytesPerSecond) || 0;
+    if (!(rate > 0)) return { ahead: requested, keepBehind: MAX_KEEP_BEHIND_SECONDS };
+    const affordable = budget / rate;
+    const keepBehind = Math.min(MAX_KEEP_BEHIND_SECONDS, Math.max(MIN_KEEP_BEHIND_SECONDS, affordable * 0.3));
+    const ahead = Math.min(requested, Math.max(MIN_AHEAD_SECONDS, affordable - keepBehind));
+    return { ahead, keepBehind };
+  }
+
   function mediaBytesPerSecond(track) {
     const segment = track?.sidx?.segments?.[track.startupIndex];
     if (segment?.durationSeconds > 0 && segment?.length > 0) return segment.length / segment.durationSeconds;
@@ -243,21 +264,59 @@
       return next;
     }
 
-    function append(candidate, track, bytes, generation) {
+    // 已经在串行队列里的时候只能用这个版本：走 removeRange 会和自己排队，直接死锁。
+    async function removeNow(candidate, track, start, end) {
+      if (!(end > start) || candidate.mediaSource.readyState !== "open") return false;
+      if (track.sourceBuffer.updating) await waitEvent(track.sourceBuffer, "updateend", "error", candidate.controller.signal);
+      if (!sessionIsCurrent(candidate) || candidate.mediaSource.readyState !== "open") return false;
+      track.sourceBuffer.remove(start, end);
+      await waitEvent(track.sourceBuffer, "updateend", "error", candidate.controller.signal);
+      return true;
+    }
+
+    // 缓冲区满了：先丢掉播放位置之前的数据，同时把这条轨道的目标缓冲压一半，
+    // 否则下一段又会把它填满。
+    async function freeBufferSpace(candidate, track) {
+      const current = Number(video.currentTime) || 0;
+      const freed = await removeNow(candidate, track, 0, current - MIN_KEEP_BEHIND_SECONDS);
+      track.aheadSeconds = Math.max(MIN_AHEAD_SECONDS, track.aheadSeconds / 2);
+      track.keepBehindSeconds = Math.max(MIN_KEEP_BEHIND_SECONDS, track.keepBehindSeconds / 2);
+      options.onLog?.(
+        freed ? "缓冲区满了，已经清掉播过的部分" : "缓冲区满了，暂时清不出空间",
+        `${track.kind === "audio" ? "声音" : "画面"}缓冲已经到达浏览器上限，目标缓冲降到 ${track.aheadSeconds.toFixed(0)} 秒。`,
+        freed ? "info" : "error",
+        "buffer"
+      );
+      return freed;
+    }
+
+    // 返回 false 表示这一段暂时放不进去，调用方应该留着它等播放推进后重试，
+    // 不要当成致命错误，也不要跳过它造成播放空洞。
+    function append(candidate, track, bytes, generation, required = false) {
       return queuedSourceOperation(candidate, track, async () => {
-        if (!sessionIsCurrent(candidate) || generation !== candidate.generation) return;
-        track.sourceBuffer.appendBuffer(bytes);
-        await waitEvent(track.sourceBuffer, "updateend", "error", candidate.controller.signal);
+        if (!sessionIsCurrent(candidate) || generation !== candidate.generation) return true;
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            track.sourceBuffer.appendBuffer(bytes);
+            await waitEvent(track.sourceBuffer, "updateend", "error", candidate.controller.signal);
+            return true;
+          } catch (error) {
+            if (error?.name !== "QuotaExceededError" || !sessionIsCurrent(candidate)) throw error;
+            const freed = await freeBufferSpace(candidate, track);
+            if (!sessionIsCurrent(candidate) || generation !== candidate.generation) return true;
+            // 初始化段和首段是必须写进去的，腾不出空间就只能报错。
+            if (!freed || attempt >= 2) {
+              if (required) throw error;
+              return false;
+            }
+          }
+        }
       });
     }
 
     function removeRange(candidate, track, start, end) {
       if (end <= start || candidate.mediaSource.readyState !== "open") return Promise.resolve();
-      return queuedSourceOperation(candidate, track, async () => {
-        if (!sessionIsCurrent(candidate) || candidate.mediaSource.readyState !== "open") return;
-        track.sourceBuffer.remove(start, end);
-        await waitEvent(track.sourceBuffer, "updateend", "error", candidate.controller.signal);
-      });
+      return queuedSourceOperation(candidate, track, () => removeNow(candidate, track, start, end));
     }
 
     async function loadTrack(candidate, kind, representation, resolver, sourceBuffer, startTime) {
@@ -284,7 +343,15 @@
         prefetches: new Map(),
         operation: Promise.resolve()
       };
-      await append(candidate, track, initialization.bytes, candidate.generation);
+      // 单段的大小/时长是瞬时码率，representation.bandwidth 是平均码率，取大的那个更保守。
+      const plan = bufferPlan(
+        kind,
+        Math.max(mediaBytesPerSecond(track), (Number(representation?.bandwidth) || 0) / 8),
+        core.normalizeSettings(getSettings()).bufferAheadSeconds
+      );
+      track.aheadSeconds = plan.ahead;
+      track.keepBehindSeconds = plan.keepBehind;
+      await append(candidate, track, initialization.bytes, candidate.generation, true);
       return track;
     }
 
@@ -341,14 +408,14 @@
             track.complete = true;
             break;
           }
-          if (bufferedEndAt(track.sourceBuffer, current) - current >= core.normalizeSettings(getSettings()).bufferAheadSeconds) break;
+          if (bufferedEndAt(track.sourceBuffer, current) - current >= track.aheadSeconds) break;
           const batchSize = track.started ? (track.kind === "video" ? 3 : 4) : 1;
           const batch = [];
           let projectedEnd = bufferedEndAt(track.sourceBuffer, current);
           for (let offset = 0; offset < batchSize; offset += 1) {
             const index = track.nextIndex + offset;
             const segment = track.sidx.segments[index];
-            if (!segment || projectedEnd - current >= core.normalizeSettings(getSettings()).bufferAheadSeconds) break;
+            if (!segment || projectedEnd - current >= track.aheadSeconds) break;
             const startup = !track.startupComplete && index === track.startupIndex;
             const prefetched = track.prefetches.get(index);
             batch.push(prefetched || segmentDownload(candidate, track, segment, index, {
@@ -361,7 +428,7 @@
               onOrderedChunk: startup ? async (bytes) => {
                 if (!sessionIsCurrent(candidate) || generation !== candidate.generation || signal.aborted) return;
                 candidate.progressiveAppends += 1;
-                await append(candidate, track, bytes, generation);
+                await append(candidate, track, bytes, generation, true);
                 ensureBuffer(candidate);
               } : null
             }));
@@ -373,7 +440,12 @@
             track.prefetches.delete(settled.index);
             if (settled.error) throw settled.error;
             if (!sessionIsCurrent(candidate) || generation !== candidate.generation || signal.aborted) break;
-            if (!settled.result.streamed) await append(candidate, track, settled.result.bytes, generation);
+            if (!settled.result.streamed && !(await append(candidate, track, settled.result.bytes, generation))) {
+              // 缓冲区暂时腾不出空间。把这一段留在预取表里，等播放推进、prune 清出空间后
+              // 再写入，nextIndex 不前进，所以不会漏掉它。
+              track.prefetches.set(settled.index, Promise.resolve(settled));
+              return;
+            }
             if (!track.startupComplete && settled.index === track.startupIndex) {
               track.startupComplete = true;
               candidate.startupCompletedBytes += settled.result.byteLength;
@@ -502,10 +574,15 @@
       publishState();
     }
 
+    // 原来要等 video.currentTime >= 75 才开始回收，等于前 75 秒一点不清理；高码率视频在那
+    // 之前就把 SourceBuffer 撑爆了。改成一超过这条轨道自己的保留窗口就回收。
     function prune(candidate = session) {
-      if (!candidate || !sessionIsCurrent(candidate) || candidate.fatal || video.currentTime < 75) return;
-      const end = video.currentTime - 30;
-      Promise.all(candidate.tracks.map((track) => removeRange(candidate, track, 0, end).catch(() => {}))).catch(() => {});
+      if (!candidate || !sessionIsCurrent(candidate) || candidate.fatal) return;
+      const current = Number(video.currentTime) || 0;
+      for (const track of candidate.tracks) {
+        const end = current - (track.keepBehindSeconds || MAX_KEEP_BEHIND_SECONDS);
+        if (end > 1) removeRange(candidate, track, 0, end).catch(() => {});
+      }
     }
 
     function disposeSession(candidate, detach = true) {
@@ -728,7 +805,7 @@
       updatePlayinfo,
       video,
       getDebug: () => ({
-        version: "0.9.1.3",
+        version: "0.9.1.4",
         architecture: "bilibili-native-ui-progressive-mse-0.8-core",
         quality: qualityLabel(selectedVideo),
         qualityId: Number(selectedVideo?.id) || 0,
@@ -747,5 +824,5 @@
     });
   }
 
-  root.__BILI_NATIVE_MSE_PLAYER_FACTORY__ = Object.freeze({ createNativePlayer, qualityLabel, selectRepresentations });
+  root.__BILI_NATIVE_MSE_PLAYER_FACTORY__ = Object.freeze({ bufferPlan, createNativePlayer, qualityLabel, selectRepresentations });
 })(globalThis);

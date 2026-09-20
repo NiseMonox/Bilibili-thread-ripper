@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "test": "npm run test:unit && npm run test:regression",
-    "test:unit": "node --test dev/version-test.js dev/shared-core-test.js dev/settings-migration-test.js",
+    "test:unit": "node --test dev/version-test.js dev/shared-core-test.js dev/settings-migration-test.js dev/buffer-plan-test.js",
     "test:regression": "node dev/run-browser-tests.js regression-smoke-test.js userscript-test.js notification-flow-test.js notification-smoke-test.js notification-error-test.js",
     "test:media": "node dev/run-browser-tests.js native-mse-end-test.js"
   },

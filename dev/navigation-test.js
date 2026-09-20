@@ -132,7 +132,7 @@
       && output.apiFallbackUsedCorrectOrigin
       && output.activePodKey === NEW_BVID
       && output.mixedStateCid === 101
-      && output.debugVersion === "0.9.1.3"
+      && output.debugVersion === "0.9.1.4"
       && output.settingsPanelCount === 1
       && output.settingsStrategy === "native-ui-progressive-mse-0.8-core"
       && output.compatibilityOptions.join(",") === "off,a,b";

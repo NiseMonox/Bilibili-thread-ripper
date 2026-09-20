@@ -15,11 +15,15 @@ test("manifest 的版本号格式正确", () => {
 });
 
 test("src 里写死的版本号和 manifest 一致", () => {
-  const pageHook = read("src/page-hook.js");
-  const stamps = [...pageHook.matchAll(/version: "(\d+(?:\.\d+)+)"/g)].map((match) => match[1]);
-  assert.ok(stamps.length >= 2, "page-hook.js 里应该有两处版本号");
-  for (const stamp of stamps) assert.equal(stamp, version);
-  assert.match(read("src/bridge.js"), new RegExp(`const VERSION = "${version.replace(/\./g, "\\.")}";`));
+  // 扫整个 src/：0.9.1.4 之前这里只检查 page-hook.js，native-mse-player.js 里的那处一直漏网。
+  let found = 0;
+  for (const file of fs.readdirSync(path.join(root, "src")).filter((name) => name.endsWith(".js"))) {
+    for (const match of read(`src/${file}`).matchAll(/(?:version: |VERSION = )"(\d+(?:\.\d+)+)"/g)) {
+      found += 1;
+      assert.equal(match[1], version, `src/${file} 里的版本号和 manifest 不一致`);
+    }
+  }
+  assert.ok(found >= 4, `src 下应该至少有 4 处版本号，实际找到 ${found} 处`);
 });
 
 test("README 写的当前版本和 manifest 一致", () => {

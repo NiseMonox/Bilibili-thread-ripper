@@ -39,7 +39,7 @@ function mockChrome() {
   const origin = "http://127.0.0.1:18763";
   const activeSelector = "#__btr_notification_stack__ .debug:not(.leaving)";
   try {
-    assert.equal(manifest.version, "0.9.1.3");
+    assert.equal(manifest.version, "0.9.1.4");
     assert.deepEqual(manifest.content_scripts.find(item => item.world === "ISOLATED").matches, ["https://*.bilibili.com/*"]);
     assert.deepEqual(manifest.content_scripts.find(item => item.world === "MAIN").matches, ["https://www.bilibili.com/*", "https://m.bilibili.com/*"]);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -64,7 +64,7 @@ function mockChrome() {
     assert.equal(await popup.locator("#active-count").innerText(), "3");
     assert.equal(await page.evaluate(async () => "statusNotice" in await chrome.storage.sync.get(null)), false);
     assert.equal(await page.locator("#__bilibili_thread_ripper_watermark__").count(), 0);
-    mark("保持 0.9.1.3，移除旧开关与监控面板，迁移不擅自开启 Debug");
+    mark("保持 0.9.1.4，移除旧开关与监控面板，迁移不擅自开启 Debug");
 
     // Red messages are off by default since 0.9.1.2. The rest of this test covers them too.
     assert.equal(await popup.locator("#error-notices").isChecked(), false);

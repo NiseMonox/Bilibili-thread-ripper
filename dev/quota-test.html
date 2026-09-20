@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>BTR SourceBuffer quota regression test</title>
+</head>
+<body>
+  <div class="bpx-player-container" style="width:960px;height:540px"><video muted></video></div>
+  <pre id="quota-result">starting</pre>
+  <script src="/src/range-core.js"></script>
+  <!-- 假的 MediaSource、SIDX、CDN 和下载器必须在播放器之前装好：播放器在脚本顶层就把这几个
+       工厂取走了。这样测试不需要真实网络，也不需要能被 Chrome 解码的 fMP4。 -->
+  <script src="/dev/quota-fakes.js"></script>
+  <script src="/src/native-mse-player.js"></script>
+  <script src="/dev/quota-test.js"></script>
+</body>
+</html>

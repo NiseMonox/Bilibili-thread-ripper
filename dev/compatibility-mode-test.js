@@ -60,7 +60,7 @@
     const reloadState = JSON.parse(sessionStorage.getItem("__btrCompatibilityReloadV1") || "null");
     const totalCreateCalls = Number(sessionStorage.getItem(`${prefix}:creates`) || 0);
     const output = { mode, loadCount, createCalls, totalCreateCalls, playerState: stats.playerState || "", reloadState, version: stats.version || "" };
-    output.pass = output.version === "0.9.1.3"
+    output.pass = output.version === "0.9.1.4"
       && output.loadCount === 2
       && output.createCalls === 1
       && output.totalCreateCalls === 1

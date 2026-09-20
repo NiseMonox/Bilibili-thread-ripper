@@ -14,7 +14,8 @@ const { chromeLaunchOptions } = require("./chrome-path.js");
     ["compatibility-mode-test.html?mode=b", "compatibility-result"],
     ["compatibility-navigation-test.html", "compatibility-navigation-result"],
     ["onboarding-test.html", "result"],
-    ["mse-abort-test.html", "mse-abort-result"]
+    ["mse-abort-test.html", "mse-abort-result"],
+    ["quota-test.html", "quota-result"]
   ];
   try {
     for (let offset = 0; offset < tests.length; offset += 3) {

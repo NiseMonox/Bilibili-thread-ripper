@@ -55,7 +55,7 @@
   let transferSequence = 1;
   const transfers = new Map();
   const stats = {
-    version: "0.9.1.3",
+    version: "0.9.1.4",
     architecture: "bilibili-native-ui-progressive-mse-0.8-core",
     mode: settings.mode,
     playerState: "waiting",
@@ -1100,7 +1100,7 @@
       getSettings: () => ({ ...settings }),
       getStats: () => ({ ...stats, takeoverError: stats.takeoverError ? { ...stats.takeoverError } : null, threadSpeeds: stats.threadSpeeds.map((item) => ({ ...item })) }),
       restart: () => restartPlayer(true),
-      version: "0.9.1.3"
+      version: "0.9.1.4"
     })
   });
   publish();
